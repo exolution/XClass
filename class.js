@@ -23,12 +23,18 @@ function factory(base,exports) {
             var instance = this;
             //标示本类构造函数里是否显式调用了父类构造函数
             var explicit = false;
-            //继承本类的的成员
-            //这个看起来多余 其实并不是
-            // 因为父类的实例没办法 new来创建 所以必须手动创建__proto__
-            instance.__proto__ = XClass.prototype;
+            if(parentClass) {
+                //父类并非用new初始化 因此手动设置__proto__
+                parent.__proto__ = parentClass.prototype;
+            }
+            if(!(this instanceof XClass)){
+                //妈蛋有人连new都懒得写
+                instance={};
+                instance.__proto__=XClass.prototype;
+            }
+
             //此函数用于本类构造函数里调用父类构造函数 用后即焚
-            instance.Super = function() {
+            instance.Super = function $super() {
                 if(!explicit) {
                     //只允许执行一次
                     explicit = true;
@@ -51,11 +57,16 @@ function factory(base,exports) {
             }
             //继承父类
             instance.__proto__.__proto__ = parent;
+            instance.Super=null;//玩过jass之后就养成set null释放的坏毛病 得治
             //$super设置为父类 之前函数销毁
             Object.defineProperty(instance, 'Super', {
                 value      : parent,
                 enumerable : false
             });
+            if(instance!==this){
+                //用于不new 直接调用构造器的
+                return instance;
+            }
         }
         //混入implements的成员
         implementList.forEach(function(imp){

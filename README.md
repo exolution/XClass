@@ -1,4 +1,4 @@
-##XClass 一个小巧精致的Class系统
+##XClass 一个小巧精致的javascript Class系统
 
 
 ###特点
