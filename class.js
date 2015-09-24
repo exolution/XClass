@@ -1,4 +1,3 @@
-
 function factory(base,exports) {
 
     /**
@@ -66,7 +65,6 @@ function factory(base,exports) {
                 }
             }
         });
-        console.log(implementList);
         XClass.prototype = classDefinition;
         XClass.parent = parentClass;
         XClass.toString = function() {
