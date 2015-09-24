@@ -1,0 +1,22 @@
+{
+  "name": "xclass",
+  "description": "A Class system support extends,super,AOP and mixin",
+  "main": "class.js",
+  "version": "1.0.0",
+  "author": {
+    "name": "exolution",
+    "email": "exolution@163.com"
+  },
+  "keywords": [
+    "class",
+    "extends",
+    "super",
+    "aop",
+    "mixin"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/exolution/xclass"
+  }
+}
