@@ -2,7 +2,7 @@
   "name": "xclass",
   "description": "A Class system support extends,super,AOP and mixin",
   "main": "class.js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "exolution",
     "email": "exolution@163.com"
