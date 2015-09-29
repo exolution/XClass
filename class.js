@@ -1,5 +1,6 @@
-function factory(base,exports) {
+function factory(base, exports) {
 
+    function noop(){}
     /**
      * 类构造器
      * @param {object} classDefinition 用户提供的类描述 包含构造函数(constructor)、属性、方法、继承(extends)
@@ -8,84 +9,84 @@ function factory(base,exports) {
     function Class(classDefinition, noInitParent) {
         var parentClass = classDefinition.Extends;
         var constructor = classDefinition.constructor;
-        var implementList= classDefinition.Implements||[];
-        if(implementList&&!Array.isArray(implementList)){
-            implementList=[implementList];
+        var implementList = classDefinition.Implements || [];
+        if(implementList && !Array.isArray(implementList)) {
+            implementList = [implementList];
         }
         delete classDefinition.Extends;
         delete classDefinition.Implements;
-
+        //提取出构造函数里Super调用的参数 让没有显示调用Super时参数为空串
+        var superArgs=Compiler.parseSuperArgs(constructor);
+        //创建一个实例化父类的函数 因为new 的时候没法 apply所以必须用eval了
+        //由于是创建类时就编译好所以不会影响效率
+        var initParent=Compiler.compileSuperMethod(parentClass,superArgs,noInitParent);
         //实际的类
         function XClass() {
-            //父类实例
-            var parent = {};
             //本类实例
             var instance = this;
-            //标示本类构造函数里是否显式调用了父类构造函数
-            var explicit = false;
-            if(parentClass) {
-                //父类并非用new初始化 因此手动设置__proto__
-                parent.__proto__ = parentClass.prototype;
-            }
-            if(!(this instanceof XClass)){
-                //妈蛋有人连new都懒得写
-                instance={};
-                instance.__proto__=XClass.prototype;
-            }
-
-            //此函数用于本类构造函数里调用父类构造函数 用后即焚
-            instance.Super = function $super() {
-                if(!explicit) {
-                    //只允许执行一次
-                    explicit = true;
-                    if(parentClass) {
-                        //如果父类存在就调用父类的构造函数
-                        parentClass.apply(parent, arguments);
-                        //初始化父类的mixin
-                        parentClass.mixin.init(parent, arguments);
-                    }
-                }
-            };
+            //创建父类实例
+            var parent=initParent?initParent(parentClass):{};
+            //创建一个空函数给本类的构造器调用（因为super的实际工作上一步已经完成）
+            instance['Super']=superArgs?noop:parent;
+            //创建proto链
+            instance['__proto__']=_initProto(XClass.prototype,parent);
             //调用本类的构造函数
             var ret = constructor && constructor.apply(instance, arguments);
             XClass.mixin.init(instance, arguments);
-            if(!explicit && !noInitParent && parentClass) {
-                //如果本类构造函数未显式调用父类构造函数 则默认以无参方式调用父类的构造函数
-                //可以指定noInitParent=true 取消默认调用父类的构造函数
-                parentClass.call(parent);
-                parentClass.mixin.init(parent, arguments);
+            if(ret && typeof ret === 'object'&&ret!==instance) {
+                //如果构造器返回了一个新对象
+                instance = ret;
+                instance['__proto__'] = _initProto(XClass.prototype, parent);
             }
-            //继承父类
-            instance.__proto__.__proto__ = parent;
-            instance.Super=null;//玩过jass之后就养成set null释放的坏毛病 得治
-            //$super设置为父类 之前函数销毁
-            Object.defineProperty(instance, 'Super', {
-                value      : parent,
-                enumerable : false
-            });
-            if(instance!==this){
-                //用于不new 直接调用构造器的
+            if(superArgs){
+                //Super设置为父类 之前函数销毁
+                //superArgs这里的判断意思是 构造器里面没有显式调用Super时 在前面就初始化好Super
+                //原因是 经过测试 在改动对象的__proto__后再给这个对象赋值 效率会降低 所以尽量避免后续赋值
+                instance['Super'] = parent;
+            }
+
+            /* Object.defineProperty(instance, 'Super', {
+             value      : parent,
+             enumerable : false
+             });*/
+            if(instance !== this) {
+                //用于不new 直接调用构造器的或者构造器里返回另外一个对象的
                 return instance;
             }
+
         }
+
         //混入implements的成员
-        implementList.forEach(function(imp){
-            for(var method in imp.prototype){
-                if(imp.prototype.hasOwnProperty(method)&&method!='constructor'){
-                    classDefinition[method]=imp.prototype[method];
+        implementList.forEach(function(imp) {
+            for(var method in imp.prototype) {
+                if(imp.prototype.hasOwnProperty(method) && method != 'constructor') {
+                    classDefinition[method] = imp.prototype[method];
                 }
             }
         });
         XClass.prototype = classDefinition;
         XClass.parent = parentClass;
         XClass.toString = function() {
-            return (constructor || function() {
-            }).toString();
+            return (constructor || noop).toString();
         };
         XClass.addAspect = addAspect;
         XClass.mixin = _createMixin(XClass);
         return XClass;
 
+    }
+
+
+
+    function _initProto(obj, parent) {
+        var newObj = {
+        };
+        for(var key in obj) {
+            if(obj.hasOwnProperty(key)) {
+                newObj[key] = obj[key];
+            }
+        }
+        newObj['__proto__']=parent;
+        return newObj;
     }
 
     function _addAnAspect(target, pos, aspect) {// AOP实现
@@ -213,11 +214,94 @@ function factory(base,exports) {
             init.apply(instance, args);
         })
     }
-    base[exports]=Class;
+    var Compiler=function() {
+        var exports={};
+        var r_clearComment = /(\/\/[^\n]+)|(\/\*(\s|.)*?\*\/)/g;
+        var r_superFinder = /this\s*?\.\s*?Super\(/g;
+        function _initSuperProto(parentClass){
+            var curClass=parentClass,proto={},curProto=proto;
+            while(curClass){
+                for(var key in curClass.prototype) {
+                    if(curClass.prototype.hasOwnProperty(key)&&key!=='constructor') {
+                        curProto[key] = curClass.prototype[key];
+                    }
+                }
+                curProto=curProto.__proto__;
+                curClass=curClass.parent;
+            }
+            return proto;
+        }
+        exports.parseSuperArgs = function(constructor) {
+            var codeStr = constructor.toString();
+            var pure = codeStr.replace(r_clearComment, '');
+            r_superFinder.exec('');
+            var match = r_superFinder.exec(pure);
+            var index = r_superFinder.lastIndex;
+            var bracket = 0, isInString = null, args = '';
+            if(match) {
+                while(index < pure.length) {
+                    var ch = pure.charAt(index);
+                    if(ch === '(' && !isInString) {
+                        bracket++;
+                    }
+                    else if(ch === ')' && !isInString) {
+                        if(bracket == 0) {
+                            break;
+                        }
+                        else {
+                            bracket--;
+                        }
+                    }
+                    else if(ch === '"') {
+                        if(isInString == null) {
+                            isInString = '"';
+                        }
+                        else if(isInString === '"') {
+                            isInString = null;
+                        }
+
+                    }
+                    else if(ch === '\'') {
+                        if(isInString == null) {
+                            isInString = '\'';
+                        }
+                        else if(isInString === '\'') {
+                            isInString = null;
+                        }
+
+                    }
+                    else if(!isInString && (ch === ' ' || ch === '\n')) {
+                        index++;
+                        continue;
+                    }
+                    args += ch;
+                    index++;
+                }
+
+            }
+            return args;
+        };
+        exports.compileSuperMethod = function(parentClass, args,noInitParent) {
+            if(parentClass) {
+
+                if(noInitParent&&!args){
+                    return _initSuperProto;
+                }
+                else{
+                    return eval('(function $super(){' +
+                                'return new parentClass(' + args + ');' +
+                                '})');
+                }
+            }
+            else return null;
+        };
+        return exports;
+    }();
+    base[exports] = Class;
 }
 //简单的自适应 不关心什么amd
-if(typeof require==='function'){
-    factory(module,'exports');
-}else {
-    factory(window,'Class');
+if(typeof require === 'function') {
+    factory(module, 'exports');
+} else {
+    factory(window, 'Class');
 }

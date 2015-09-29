@@ -35,8 +35,10 @@
             Extends      : A,
             constructor : function(b) {
 
-                this.Super(2);
+                //this.Super(2);
                 console.log('class B construct with params:', [].join.call(arguments, ','));
+                this.funcB();
+                this.funcA();
                 this.prop_B = b;
                 this.prop = 'B';
 
@@ -59,7 +61,7 @@
                 return 123;
             }
         });
-        B.mixin({
+        A.mixin({
             init:function(){
                 console.log('init mixin',this);
             },
@@ -67,6 +69,51 @@
                 this.Super.funcA();
             }
         });
+
+        function AA(a){
+            this.prop_A = a;
+            this.prop = 'A';
+        }
+        AA.prototype={
+
+            funcA       : function() {
+                console.log('call funcA:', this.prop_A);
+            },
+            func        : function() {
+                console.log('call func at[class A] with the private prop:', this.prop)
+            }
+        };
+        function _initProto(obj, parent) {
+            var newObj = {};
+            for(var key in obj) {
+                if(obj.hasOwnProperty(key)) {
+                    newObj[key] = obj[key];
+                }
+            }
+            newObj['__proto__'] = parent;
+            return newObj;
+        }
+        function BB(b){
+            this.Super=new AA(2);
+            this.__proto__=_initProto(BB.prototype,this.Super);
+            this.prop_B = b;
+            this.prop = 'B';
+        }
+        BB.prototype={
+            funcB       : function() {
+                console.log('call funcB:', this.prop_B);
+                console.log('prop_A:', this.prop_A);
+            },
+            funcX       : function() {
+                this.Super.funcA();
+            },
+            func        : function() {
+                console.log('call func at[class B] with the private prop:', this.prop)
+                this.Super.func();
+            }
+        };
+
+
         console.log('############# new B ############');
         var b = new B('haha');
         console.log('--------------------------------');
