@@ -1,7 +1,7 @@
-##XClass 一个小巧精致的javascript Class系统
+## XClass 一个小巧精致的javascript Class系统
 
 
-###特点
+### 特点
 * 实现继承机制，使用简单
 * 简单的Implements实现多继承
 * 较完美的实现super机制
@@ -13,7 +13,7 @@
 * 核心类代码只有50多行 简洁明了
 
 
-###说(che)明(dan)
+### 说(che)明(dan)
 其实在ES6已经支持class的时代再推出Class系统，多少有些多此一举。  
 但是对于类的情结，在我当年从Java转行js的时候就已经深深埋下，以前有过几次实现，都不是十分完美和顺手。  
 
@@ -35,8 +35,8 @@ ES6的class很甜 语法形式也近乎接近Java/C#之流了 然后还是有很
 另外一个是AOP，这个其实就是对类方法进行动态代理（当然 ES6的proxy更牛逼 但是不敢用 proxy是没办法to ES5的）  
 
 
-###用法
-######1、创建类
+### 用法
+###### 1、创建类
 Class(classDefinition,noInitParent=false);   
 `@classDefinition` 传入的类定义  
  `@noInitParent` 可选 是否默认调用父类的构造函数 在有【只需要继承父类的prototype而不需要初始化父类】的需求时 设置为true 默认false
@@ -62,7 +62,7 @@ var a=new A();//实例化类
 a.func();//对实例操作
 
 ```
-######2、继承
+###### 2、继承
 在类定义里指定`Extends`字段 指定其父类  
 也可以指定`Implements` 实现多“继承” Implements的值可以是一个类也可以是一个类的数组  
 注意Implements只是简单的把指定的类的prototype拷贝到该类的的prototype 不存在继承性 无法用super访问到  
@@ -96,7 +96,7 @@ var B = Class({
 var b=new B();
 b.func();
 ```
-######3、AOP
+###### 3、AOP
 使用 AClass.addAspect(object)对类方法添加切面  
 object是以键值对的方式提供  
 value是一个函数  
@@ -137,7 +137,7 @@ advice: { host: { prop_B: 'haha', prop: 'B' },
   ret: undefined }
 */
 ```
-######4、Mixin
+###### 4、Mixin
 使用 AClass.mixin(object) 扩展该类  
 作为参数的object 有一个特殊方法 `init`   
 这个方法会在该类实例化的时候调用 （就是把这个init函数植入到该类构造函数后面执行）  
